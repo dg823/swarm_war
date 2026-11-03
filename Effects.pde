@@ -52,7 +52,7 @@ class Effects {
   int haloTick;
 
   // 배경 입자
-  float[] dustX = new float[120], dustY = new float[120], dustV = new float[120];
+  float[] dustX = new float[60], dustY = new float[60], dustV = new float[60];
 
   Effects() {
     for (int i = 0; i < dustX.length; i++) {
@@ -222,16 +222,12 @@ class Effects {
   // 개체 아래 : 배경 입자, 군집 중심 후광
   void drawBelow(World w) {
     int L = effective(w);
-    if (L == 0) return;
+    if (L < 2) return;                            // 배경 입자와 군집 후광은 "보통" 이상에서만
     stroke(26, 28, 33);                           // 불투명 (배경과 미리 섞은 색)
     strokeWeight(3);
     beginShape(POINTS);
     for (int i = 0; i < dustX.length; i++) vertex(dustX[i], dustY[i]);
     endShape();
-    if (L < 2) {
-      strokeWeight(1);
-      return;
-    }
     noFill();
     float pulse = 0.5 + 0.5 * sin(frameCount * 0.05);
     for (int s = 0; s < N_SPECIES; s++) {

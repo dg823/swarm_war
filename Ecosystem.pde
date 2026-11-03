@@ -253,6 +253,15 @@ class Ecosystem {
       boolean sexual = m != null && m != p && m.alive && m.id == p.mateId && m.species == p.species
         && m.energy >= s.reproThr * m.maxEnergy * 0.8;
       w.evo.breed(w, c, p, sexual ? m : null);
+      float csp = sqrt(c.vx * c.vx + c.vy * c.vy);               // 물려받은 유전자로 속도 범위가 바뀌었으니 초기 속도를 맞춘다
+      float clo = 0.4 * c.speedMax;
+      if (csp > c.speedMax) {
+        c.vx *= c.speedMax / csp;
+        c.vy *= c.speedMax / csp;
+      } else if (csp < clo && csp > 1e-6) {
+        c.vx *= clo / csp;
+        c.vy *= clo / csp;
+      }
       c.energy = s.childEnergy;
       p.energy -= s.reproCost;
       p.repCd = s.repCd;

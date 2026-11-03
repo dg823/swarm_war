@@ -151,7 +151,7 @@ class Hud {
 
   void panel(float x, float y, float w, float h, String title) {
     noStroke();
-    fill(0, 175);
+    fill(6, 8, 14, 238);                         // 뒤의 개체가 비쳐 그래프가 안 읽히지 않도록 거의 불투명하게
     rect(x, y, w, h, 6);
     fill(255);
     textSize(13);

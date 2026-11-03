@@ -137,9 +137,7 @@ class World {
     a.x = constrain(x, 0, WORLD_W - 0.01);
     a.y = constrain(y, 0, WORLD_H - 0.01);
     float ang = rng.nextFloat() * TWO_PI;
-    float spd = sp.maxSpeed * (0.5 + 0.5 * rng.nextFloat());
-    a.vx = cos(ang) * spd;
-    a.vy = sin(ang) * spd;
+    float rs = 0.5 + 0.5 * rng.nextFloat();
     a.heading = ang;
     a.ax = 0;
     a.ay = 0;
@@ -148,6 +146,9 @@ class World {
     a.mate = null;
     a.mateId = -1;
     evo.initGenes(this, a);                        // 유전자와 그에 따른 능력치 (initStats의 기본값을 덮어쓴다)
+    float spd = a.speedMax * rs;                   // 초기 속도는 이 개체 자신의 최대 속도 기준 (유전자로 달라진다)
+    a.vx = cos(ang) * spd;
+    a.vy = sin(ang) * spd;
     return a;
   }
 
@@ -206,6 +207,8 @@ class World {
     }
     for (int i = 0; i < count; i++) {
       Agent a = pool[i];
+      Species sp = species[a.species];
+      a.power = (a.atk / sp.attackCd) * a.hp * (1 + a.def / 100.0);   // AI가 첫 스텝부터 올바른 전투력을 보도록 여기서도 계산
       pop[a.species]++;
       powerSum[a.species] += a.power;
       meanEnergy[a.species] += a.energy / a.maxEnergy;
@@ -270,6 +273,7 @@ class World {
 
   void step() {
     long t0 = System.nanoTime();
+    refreshSpeciesStats();                                       // AI가 최신 개체 수, 무게중심, 전투력을 보도록
     for (int s = 0; s < N_SPECIES; s++) cmd[s].update(this);     // 자체 AI 지휘관의 명령 갱신
     eco.begin(this);                // 먹이 생성(일정한 양) + 먹이 격자
     grid.build(pool, count);
