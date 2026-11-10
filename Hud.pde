@@ -268,7 +268,9 @@ class Hud {
     fill(255, 150);
     textSize(12);
     textAlign(LEFT, BOTTOM);
-    text("명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   1/2/3 지휘 종족 선택", 12, height - 28);
+    text(player < 0
+      ? "관찰 모드 (모두 AI)   |   1/2/3 종족 지휘 시작"
+      : "명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   |   1/2/3 지휘 종족 선택   0 관찰 모드", 12, height - 28);
     text("화면 : WASD 이동   휠 확대   TAB 그래프   G 격자   T 잔상   F 효과   H 숨김   |   SPACE 정지   , . 배속   M 모드   R 재시작   N 새 시드   UP/DOWN 개체 +-50",
       12, height - 10);
   }

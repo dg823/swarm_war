@@ -6,8 +6,10 @@
 // V0.5 지휘(이동/방어/공격/후퇴 명령, 카메라, 통계 그래프)  FINAL 시각 효과, 게임 모드, 안정성
 //
 // 조작 : 좌클릭 이동 명령, 우클릭 방어 명령, Q 공격 명령, E 후퇴 명령, 마우스 휠 확대/축소, WASD 화면 이동,
-//        SPACE 일시정지, 1/2/3 지휘할 종족 선택, M 게임 모드, F 효과 수준, TAB 그래프, G 공간 격자, T 잔상,
+//        SPACE 일시정지, 1/2/3 지휘할 종족 선택, 0 관찰 모드(전 종족 AI), M 게임 모드, F 효과 수준, TAB 그래프, G 공간 격자, T 잔상,
 //        H HUD, R 재시작, N 새 시드, , . 배속, UP/DOWN 지휘 종족 개체 +-50 (디버그)
+//
+// 시작은 관찰 모드다(세 종족 모두 AI). 지휘는 관찰자가 개입하는 보조 기능이며, 명령은 지휘 중인 종족이 있을 때만 받는다.
 
 PFont uiFont;
 World world;
@@ -18,7 +20,7 @@ Metrics metrics;
 Effects fx;
 GameMode gm;
 
-int player;                         // 플레이어가 지휘하는 종족
+int player = -1;                    // 플레이어가 지휘하는 종족 (-1 = 관찰 모드, 모두 AI)
 float timeScale = 1;
 boolean isPaused;
 int lastMs;
@@ -90,11 +92,16 @@ void keyPressed() {
     player = keyCode - '1';
     world.setPlayer(player);
   }
-  if (keyCode == 'Q') world.cmd[player].attack(world);
-  if (keyCode == 'E') world.cmd[player].retreat();
-
-  if (keyCode == UP) world.setPopulation(player, world.pop[player] + 50);
-  if (keyCode == DOWN) world.setPopulation(player, world.pop[player] - 50);
+  if (keyCode == '0') {                                  // 관찰 모드로 돌아가기 (모두 AI)
+    player = -1;
+    world.setPlayer(player);
+  }
+  if (player >= 0) {                                     // 명령은 지휘 중인 종족이 있을 때만
+    if (keyCode == 'Q') world.cmd[player].attack(world);
+    if (keyCode == 'E') world.cmd[player].retreat();
+    if (keyCode == UP) world.setPopulation(player, world.pop[player] + 50);
+    if (keyCode == DOWN) world.setPopulation(player, world.pop[player] - 50);
+  }
   if (key == ' ') isPaused = !isPaused;
   if (keyCode == 'R') restart(world.seed);
   if (keyCode == 'N') restart(millis() * 7919L + 13);
@@ -118,7 +125,7 @@ void keyReleased() {
 
 // 좌클릭 = 이동 명령, 우클릭 = 방어 명령 (HUD 위는 제외)
 void mousePressed() {
-  if (hud.hits(mouseX, mouseY)) return;
+  if (player < 0 || hud.hits(mouseX, mouseY)) return;    // 관찰 모드에서는 클릭 명령 없음
   float wx = cam.toWorldX(mouseX), wy = cam.toWorldY(mouseY);
   if (mouseButton == LEFT) world.cmd[player].moveTo(wx, wy);
   else if (mouseButton == RIGHT) world.cmd[player].defendAt(wx, wy);

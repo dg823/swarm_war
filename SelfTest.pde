@@ -1314,13 +1314,32 @@ boolean testInput() {
   key = 'q';
   keyPressed();
   boolean other = world.cmd[1].order == ORD_ATTACK;   // 이제 BLUE가 명령을 받는다
-  boolean ok = l && r && hudIgnored && q && e && sel && other;
+
+  // 0 : 관찰 모드(모두 AI). 이때 클릭/키 명령은 아무 종족에도 들어가지 않아야 한다
+  keyCode = '0';
+  key = '0';
+  keyPressed();
+  boolean obs = player == -1 && world.playerSpecies == -1;
+  for (int s = 0; s < N_SPECIES; s++) obs &= !world.cmd[s].isPlayer;
+  for (int s = 0; s < N_SPECIES; s++) world.cmd[s].order = ORD_NONE;
+  mouseX = 600;
+  mouseY = 400;
+  mouseButton = LEFT;
+  mousePressed();
+  keyCode = 'Q';
+  key = 'q';
+  keyPressed();
+  boolean obsNoCmd = true;
+  for (int s = 0; s < N_SPECIES; s++) obsNoCmd &= world.cmd[s].order == ORD_NONE;
+
+  boolean ok = l && r && hudIgnored && q && e && sel && other && obs && obsNoCmd;
   report("T19 입력 처리", ok, "좌클릭 이동 " + (l ? "O" : "X") + ", 우클릭 방어 " + (r ? "O" : "X") + ", HUD 위 클릭 무시 " + (hudIgnored ? "O" : "X")
-    + ", Q 공격 " + (q ? "O" : "X") + ", E 후퇴 " + (e ? "O" : "X") + ", 1/2/3 종족 선택 " + (sel ? "O" : "X") + ", 선택한 종족에 명령 " + (other ? "O" : "X"));
+    + ", Q 공격 " + (q ? "O" : "X") + ", E 후퇴 " + (e ? "O" : "X") + ", 1/2/3 종족 선택 " + (sel ? "O" : "X") + ", 선택한 종족에 명령 " + (other ? "O" : "X")
+    + ", 0 관찰 모드 " + (obs ? "O" : "X") + ", 관찰 중 명령 무시 " + (obsNoCmd ? "O" : "X"));
   pass &= ok;
 
-  world.setPlayer(0);                                 // 원래대로
-  player = 0;
+  world.setPlayer(-1);                                // 원래대로 (관찰 모드)
+  player = -1;
   world.cmd[0].order = ORD_NONE;
   world.cmd[1].order = ORD_NONE;
   return pass;
@@ -1780,6 +1799,8 @@ void selfTestFrame() {
     metrics.compute(world);
   } else if (stFrame == 2) {
     world.countSpecies();
+    player = 0;                                           // 관찰자가 RED 지휘에 개입한 화면
+    world.setPlayer(player);
     world.cmd[player].moveTo(1800, 900);                  // 이동 명령 표시 확인
     gm.setMode(MODE_CONQUEST, world);                     // 점령 모드 표시 확인
     cam.zoomAt(600, 400, 2.0);                            // 확대도 확인
