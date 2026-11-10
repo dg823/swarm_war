@@ -14,6 +14,12 @@ class World {
   Ecosystem eco;
   Evolution evo;
   Commander[] cmd = new Commander[N_SPECIES];
+  SquadSystem squads = new SquadSystem();   // V0.6 분대와 진형 슬롯
+
+  // 장애물 (V0.6, 원형). 시드와 무관한 고정 배치라 난수를 쓰지 않는다.
+  float[] obX = new float[MAX_OBS], obY = new float[MAX_OBS], obR = new float[MAX_OBS];
+  int nObs;
+  int forceSat;                     // 이번 스텝에 합력 상한(2.5 x maxForce)에 걸린 개체 수 (검증용)
   int playerSpecies = -1;           // 플레이어가 지휘하는 종족 (-1이면 모두 AI)
   Stats stats = new Stats();
   EventLog events = new EventLog(); // 타격/사망/번식 기록 (시각 효과가 읽어 간다. 시뮬레이션 결과에는 영향 없음)
@@ -21,7 +27,7 @@ class World {
   float acc;                        // 고정 스텝 시간 누적기
   long stepCount;
   float stepMs;                     // 최근 스텝 시간 (지수 이동 평균)
-  long nsGrid, nsBoids, nsInt, nsCombat, nsEco;   // 성능 분석용 누적 시간
+  long nsGrid, nsBoids, nsInt, nsCombat, nsEco, nsSquad;   // 성능 분석용 누적 시간
   float[] powerSum = new float[N_SPECIES];        // 종족별 전투력 합 (이전 스텝 기준)
   float[] meanEnergy = new float[N_SPECIES];      // 종족별 평균 에너지 비율 (0~1)
   float[] avgGen = new float[N_SPECIES];          // 종족별 평균/최대 세대
@@ -84,6 +90,8 @@ class World {
     eco.reset();
     evo.reset();
     stats.reset();
+    squads.reset();
+    placeObstacles(worldObstacles);
     for (int s = 0; s < N_SPECIES; s++) cmd[s].reset(homeX[s], homeY[s]);
     for (int s = 0; s < N_SPECIES; s++) spawnCluster(s, INITIAL_PER_SPECIES, homeX[s], homeY[s], 230);
     for (int i = 0; i < count; i++) pool[i].age = rng.nextFloat() * 30;     // 번식 시점이 한꺼번에 몰리지 않게
@@ -93,6 +101,58 @@ class World {
   void clear() {
     for (int i = 0; i < count; i++) pool[i].alive = false;
     count = 0;
+    squads.reset();
+  }
+
+  // ---------- 장애물 ----------
+
+  // 고정 배치 8개 : 종족 거점(반경 230)과 오아시스를 피해 놓았다
+  void placeObstacles(boolean on) {
+    nObs = 0;
+    if (!on) return;
+    float[][] L = {{1200, 600, 70}, {1200, 950, 80}, {400, 1150, 90}, {2200, 700, 60},
+                   {800, 350, 60}, {1500, 750, 50}, {700, 1300, 60}, {1550, 1350, 50}};
+    for (float[] o : L) addObstacle(o[0], o[1], o[2]);
+  }
+
+  void addObstacle(float x, float y, float r) {
+    if (nObs >= MAX_OBS) return;
+    obX[nObs] = x;
+    obY[nObs] = y;
+    obR[nObs] = r;
+    nObs++;
+  }
+
+  // 장애물 안이면 가장 가까운 가장자리 바깥으로 옮긴다. 결과는 pushX, pushY (옮겼으면 true)
+  float pushX, pushY;
+  boolean pushOut(float x, float y, float pad) {
+    pushX = x;
+    pushY = y;
+    boolean moved = false;
+    for (int o = 0; o < nObs; o++) {
+      float dx = pushX - obX[o], dy = pushY - obY[o];
+      float rr = obR[o] + pad;
+      float d2 = dx * dx + dy * dy;
+      if (d2 >= rr * rr) continue;
+      float d = sqrt(d2);
+      if (d < 1e-4) {
+        dx = 1;
+        dy = 0;
+        d = 1;
+      }
+      pushX = obX[o] + dx / d * rr;
+      pushY = obY[o] + dy / d * rr;
+      moved = true;
+    }
+    return moved;
+  }
+
+  boolean insideObstacle(float x, float y) {
+    for (int o = 0; o < nObs; o++) {
+      float dx = x - obX[o], dy = y - obY[o];
+      if (dx * dx + dy * dy < obR[o] * obR[o]) return true;
+    }
+    return false;
   }
 
   // ---------- 생성과 제거 ----------
@@ -145,6 +205,11 @@ class World {
     a.alive = true;
     a.mate = null;
     a.mateId = -1;
+    a.squad = -1;
+    a.slotU = 0;
+    a.slotV = 0;
+    a.formK = 0;
+    a.engT = 0;
     evo.initGenes(this, a);                        // 유전자와 그에 따른 능력치 (initStats의 기본값을 덮어쓴다)
     float spd = a.speedMax * rs;                   // 초기 속도는 이 개체 자신의 최대 속도 기준 (유전자로 달라진다)
     a.vx = cos(ang) * spd;
@@ -275,6 +340,9 @@ class World {
     long t0 = System.nanoTime();
     refreshSpeciesStats();                                       // AI가 최신 개체 수, 무게중심, 전투력을 보도록
     for (int s = 0; s < N_SPECIES; s++) cmd[s].update(this);     // 자체 AI 지휘관의 명령 갱신
+    long ts = System.nanoTime();
+    squads.step(this);              // 분대 중심(매 스텝), 소속/방향/슬롯(5Hz)
+    nsSquad += System.nanoTime() - ts;
     eco.begin(this);                // 먹이 생성(일정한 양) + 먹이 격자
     grid.build(pool, count);
     long t1 = System.nanoTime();

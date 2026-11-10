@@ -7,7 +7,8 @@
 //
 // 조작 : 좌클릭 이동 명령, 우클릭 방어 명령, Q 공격 명령, E 후퇴 명령, 마우스 휠 확대/축소, WASD 화면 이동,
 //        SPACE 일시정지, 1/2/3 지휘할 종족 선택, 0 관찰 모드(전 종족 AI), M 게임 모드, F 효과 수준, TAB 그래프, G 공간 격자, T 잔상,
-//        H HUD, R 재시작, N 새 시드, , . 배속, UP/DOWN 지휘 종족 개체 +-50 (디버그)
+//        H HUD, R 재시작, N 새 시드, , . 배속, UP/DOWN 지휘 종족 개체 +-50 (디버그),
+//        Z 진형 순환(지휘 중이면 그 종족, 관찰 모드면 전 종족), B 분대 디버그 (V0.6)
 //
 // 시작은 관찰 모드다(세 종족 모두 AI). 지휘는 관찰자가 개입하는 보조 기능이며, 명령은 지휘 중인 종족이 있을 때만 받는다.
 
@@ -21,6 +22,7 @@ Effects fx;
 GameMode gm;
 
 int player = -1;                    // 플레이어가 지휘하는 종족 (-1 = 관찰 모드, 모두 AI)
+boolean worldObstacles = true;      // 새 월드에 장애물을 놓는가 (자체 검증은 기존 결과와 비교하려고 끈다)
 float timeScale = 1;
 boolean isPaused;
 int lastMs;
@@ -102,6 +104,15 @@ void keyPressed() {
     if (keyCode == UP) world.setPopulation(player, world.pop[player] + 50);
     if (keyCode == DOWN) world.setPopulation(player, world.pop[player] - 50);
   }
+  if (keyCode == 'Z') {                                  // 진형 순환 : 지휘 중이면 그 종족, 관찰 모드면 전 종족
+    if (player >= 0) {
+      world.cmd[player].formSet = nextFormSetting(world.cmd[player].formSet);
+    } else {
+      int f = nextFormSetting(world.cmd[0].formSet);
+      for (int s = 0; s < N_SPECIES; s++) world.cmd[s].formSet = f;
+    }
+  }
+  if (keyCode == 'B') rdr.showSquads = !rdr.showSquads;
   if (key == ' ') isPaused = !isPaused;
   if (keyCode == 'R') restart(world.seed);
   if (keyCode == 'N') restart(millis() * 7919L + 13);

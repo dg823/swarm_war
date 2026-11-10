@@ -42,4 +42,10 @@ class Agent {
   int attackerSp;                   // 마지막으로 때린 종족
   int state;                        // AS_*
   float speedMul;                   // 상태에 따른 속도 배수
+
+  // 진형 (V0.6)
+  int squad = -1;                   // 소속 분대 (SquadSystem.sq 인덱스, -1 = 없음)
+  float slotU, slotV;               // 분대 좌표계의 슬롯 (u 앞, v 오른쪽)
+  float formK;                      // 이 개체의 진형 복귀 정도 (교전하면 0, 끝나면 서서히 1)
+  float engT;                       // 교전이 끝난 뒤 남은 대기 시간
 }

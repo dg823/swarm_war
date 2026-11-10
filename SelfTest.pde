@@ -3,6 +3,7 @@
 
 void runSelfTest() {
   println("=== SWARM WAR SELFTEST ===");
+  worldObstacles = false;                              // 기존 검증(T1~T24)은 장애물 없는 월드 기준 (장애물은 F5/F6에서 따로 켠다)
   boolean runEvo = !SELFTEST_ONLY.equals("noevo");     // "noevo" : 진화 실험(약 8분)만 빼고 전부
   if (SELFTEST_ONLY.length() > 0 && runEvo) {
     if (SELFTEST_ONLY.equals("balance")) testBalance();
@@ -11,6 +12,7 @@ void runSelfTest() {
     else if (SELFTEST_ONLY.equals("evo")) testEvolution();
     else if (SELFTEST_ONLY.equals("dbg")) debugControl();
     else if (SELFTEST_ONLY.equals("inv")) testInvariants();
+    else if (SELFTEST_ONLY.equals("form")) testFormation();          // V0.6 진형 F1~F6, P
     else if (SELFTEST_ONLY.equals("part1")) {            // T1~T13 (진화 실험 제외)
       boolean ok = true;
       ok &= testGrid();
@@ -81,6 +83,7 @@ void runSelfTest() {
   ok &= testEffects();
   ok &= testStability();
   ok &= testFrameIndependence();
+  ok &= testFormation();
   stAllOk = ok;                                       // 렌더링 성능(T23)은 draw() 안에서 재고 최종 판정을 출력한다
 }
 
@@ -1035,6 +1038,7 @@ World orderWorld(int player, long seed) {
   w.eco.enabled = false;                             // 명령의 효과만 본다 (먹이/굶주림/번식 없음)
   w.clear();
   w.setPlayer(player);
+  for (int s = 0; s < N_SPECIES; s++) w.cmd[s].formSet = FM_NONE;   // T16 등은 V0.5 명령 동작 검증 (진형은 F1~F6에서)
   return w;
 }
 
@@ -1772,6 +1776,21 @@ boolean testRenderPerf() {
 int stFrame = 0;
 
 void selfTestFrame() {
+  if (SELFTEST_ONLY.equals("form")) {                   // 진형 스크린샷 : RED 횡대 이동, BLUE 원형 방어, GREEN 종대 이동
+    World w = formShotWorld();
+    for (int i = 0; i < 600; i++) w.step();
+    cam.fit(width, height);
+    rdr.showSquads = false;
+    rdr.draw(w, cam, -1, fx, gm);
+    save(sketchPath("shot_form.png"));
+    for (int i = 0; i < 180; i++) w.step();
+    rdr.showSquads = true;
+    rdr.draw(w, cam, -1, fx, gm);
+    save(sketchPath("shot_form_debug.png"));
+    rdr.showSquads = false;
+    exit();
+    return;
+  }
   if (SELFTEST_ONLY.equals("renderprof")) {            // 렌더링은 실제 draw() 안에서 재야 한다 (setup 안과 결과가 다르다)
     if (stFrame == 3) {
       renderProfile();

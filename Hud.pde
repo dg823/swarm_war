@@ -132,7 +132,9 @@ class Hud {
       fill(200);
       textSize(12);
       text("생존율 " + round(w.stats.survival(w, s) * 100) + "%  에너지 " + round(w.meanEnergy[s] * 100) + "%  세대 " + nf(w.avgGen[s], 1, 1) + " (최대 " + w.maxGen[s] + ")", x, 28);
-      text("처치 " + w.kills[s] + " / 사망 " + w.deaths[s] + "   명령 " + orderName(w.cmd[s].order), x, 44);
+      Commander cm = w.cmd[s];
+      String fm = cm.formSet == FM_AUTO ? "자동(" + formName(cm.resolvedForm()) + ")" : formName(cm.formSet);
+      text("처치 " + w.kills[s] + " / 사망 " + w.deaths[s] + "   명령 " + orderName(cm.order) + "   진형 " + fm, x, 44);
     }
 
     float gx = 12 + 3 * 285 + 6;
@@ -269,8 +271,8 @@ class Hud {
     textSize(12);
     textAlign(LEFT, BOTTOM);
     text(player < 0
-      ? "관찰 모드 (모두 AI)   |   1/2/3 종족 지휘 시작"
-      : "명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   |   1/2/3 지휘 종족 선택   0 관찰 모드", 12, height - 28);
+      ? "관찰 모드 (모두 AI)   |   1/2/3 종족 지휘 시작   Z 진형(전 종족)   B 분대 표시"
+      : "명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   Z 진형   |   1/2/3 지휘 종족 선택   0 관찰 모드   B 분대 표시", 12, height - 28);
     text("화면 : WASD 이동   휠 확대   TAB 그래프   G 격자   T 잔상   F 효과   H 숨김   |   SPACE 정지   , . 배속   M 모드   R 재시작   N 새 시드   UP/DOWN 개체 +-50",
       12, height - 10);
   }

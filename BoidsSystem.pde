@@ -38,6 +38,7 @@ class BoidsSystem {
       o.power = (o.atk / s.attackCd) * o.hp * (1 + o.def / 100.0);
     }
     w.combatAgents = 0;
+    w.forceSat = 0;
 
     for (int i = 0; i < n; i++) {
       Agent me = a[i];
@@ -143,20 +144,56 @@ class BoidsSystem {
         }
       }
 
-      // 정렬, 응집 : 같은 종족 이웃만
+      // 진형 강도 (V0.6) : 분대 진형 x 전환 블렌드 x (1 - 0.85 x 교전 비율) x 개체의 복귀 정도
+      Squad q = w.squads.of(me);
+      float formStr = w.squads.strength(me, q);
+
+      // 정렬, 응집 : 같은 종족 이웃만. 진형 중에는 응집을 줄인다 (슬롯이 대신 모양을 잡는다)
       if (nSame > 0) {
         steer(aliX / nSame, aliY / nSame, me, s.maxForce);
         fx += outX * s.wAli * me.flockMul;                // 군집 성향 유전자
         fy += outY * s.wAli * me.flockMul;
         steer(cohX / nSame, cohY / nSame, me, s.maxForce);
-        fx += outX * s.wCoh * me.flockMul;
-        fy += outY * s.wCoh * me.flockMul;
+        float coh = s.wCoh * me.flockMul * (1 - FORM_COH_CUT * formStr);
+        fx += outX * coh;
+        fy += outY * coh;
       }
 
       // 전투 AI : 상태 결정, 상태별 조향력, 공격 (같은 순회 결과를 재사용)
       w.combat.react(w, me, i, sc);
       fx += w.combat.fx;
       fy += w.combat.fy;
+
+      // 진형 복귀 정도 : 교전(공격/도주/후퇴)하면 0, 끝나고 1.5초 뒤부터 초당 0.5씩 회복
+      if (me.state == AS_ATTACK || me.state == AS_FLEE || me.state == AS_RETREAT) {
+        me.engT = ENGAGE_HOLD;
+        me.formK = 0;
+      } else if (me.engT > 0) {
+        me.engT -= DT;
+      } else if (me.formK < 1) {
+        me.formK = min(1, me.formK + REFORM_RATE * DT);
+      }
+
+      // 진형 슬롯 : 분대 속도 + 슬롯 오차 보정을 원하는 속도로 (도착하면 자연히 느려진다)
+      if (formStr > 0.01) {
+        float wx = q.cx + q.dirX * me.slotU - q.dirY * me.slotV;
+        float wy = q.cy + q.dirY * me.slotU + q.dirX * me.slotV;
+        float dvx = q.vx + (wx - me.x) * FORM_GAIN, dvy = q.vy + (wy - me.y) * FORM_GAIN;
+        float dm = sqrt(dvx * dvx + dvy * dvy), vmax = me.speedMax * me.speedMul;
+        if (dm > vmax) {
+          dvx *= vmax / dm;
+          dvy *= vmax / dm;
+        }
+        float sx = dvx - me.vx, sy = dvy - me.vy;
+        float sl = sqrt(sx * sx + sy * sy);
+        if (sl > s.maxForce) {
+          sx *= s.maxForce / sl;
+          sy *= s.maxForce / sl;
+        }
+        float k = FORM_W * formStr * me.flockMul;
+        fx += sx * k;
+        fy += sy * k;
+      }
 
       // 채집 : 먹이 후보 선정, 배고프면 먹이 쪽으로 (전투 상태가 정해진 뒤에)
       w.eco.forage(w, me, s);
@@ -177,6 +214,26 @@ class BoidsSystem {
       if (me.y < m) fy += (m - me.y) / m * bf;
       else if (me.y > WORLD_H - m) fy -= (me.y - (WORLD_H - m)) / m * bf;
 
+      // 장애물 회피 (V0.6) : 가까울수록 강한 반발 + 다가가는 중이면 접선 방향으로 비켜 돌기
+      for (int o = 0; o < w.nObs; o++) {
+        float ox = me.x - w.obX[o], oy = me.y - w.obY[o];
+        float margin = 45 + s.size * 2;
+        float reach = w.obR[o] + margin;
+        float od2 = ox * ox + oy * oy;
+        if (od2 >= reach * reach) continue;
+        float od = max(1e-3, sqrt(od2));
+        float nx = ox / od, ny = oy / od;
+        float t = constrain(1 - (od - w.obR[o]) / margin, 0, 1.5);
+        fx += nx * t * s.maxForce * 2.0;
+        fy += ny * t * s.maxForce * 2.0;
+        float toward = -(me.vx * nx + me.vy * ny);              // 장애물 쪽으로 다가가는 속도
+        if (toward > 0) {
+          float side = me.vx * -ny + me.vy * nx >= 0 ? 1 : -1;  // 이미 기울어진 쪽으로 돈다
+          fx += -ny * side * t * s.maxForce * 1.5;
+          fy += nx * side * t * s.maxForce * 1.5;
+        }
+      }
+
       // 미세한 무작위 힘 (시드 RNG라 재현 가능)
       fx += (w.rng.nextFloat() - 0.5) * s.jitter;
       fy += (w.rng.nextFloat() - 0.5) * s.jitter;
@@ -186,6 +243,7 @@ class BoidsSystem {
       if (fm > fmax) {
         fx *= fmax / fm;
         fy *= fmax / fm;
+        w.forceSat++;
       }
       me.ax = fx;
       me.ay = fy;
@@ -222,6 +280,23 @@ class BoidsSystem {
       float diff = atan2(me.vy, me.vx) - me.heading;
       diff = atan2(sin(diff), cos(diff));
       me.heading += diff * 0.25;
+
+      // 장애물 안으로 들어갔으면 가장자리로 밀어내고 안쪽 속도 성분을 없앤다
+      for (int o = 0; o < w.nObs; o++) {
+        float ox = me.x - w.obX[o], oy = me.y - w.obY[o];
+        float r = w.obR[o] + 1;
+        float od2 = ox * ox + oy * oy;
+        if (od2 >= r * r) continue;
+        float od = sqrt(od2);
+        float nx = od > 1e-4 ? ox / od : 1, ny = od > 1e-4 ? oy / od : 0;
+        me.x = w.obX[o] + nx * r;
+        me.y = w.obY[o] + ny * r;
+        float vn = me.vx * nx + me.vy * ny;
+        if (vn < 0) {
+          me.vx -= vn * nx;
+          me.vy -= vn * ny;
+        }
+      }
 
       if (me.x < 0) { me.x = 0; me.vx = abs(me.vx); }
       else if (me.x >= WORLD_W) { me.x = WORLD_W - 0.01; me.vx = -abs(me.vx); }

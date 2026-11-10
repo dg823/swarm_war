@@ -3,6 +3,7 @@
 class Renderer {
   boolean trails = false;           // 화면 잔상 (이전 프레임을 서서히 지운다)
   boolean showGrid = false;         // 공간 격자 디버그
+  boolean showSquads = false;       // 분대 디버그 (V0.6) : 분대 중심, 방향, 슬롯
   float vl, vt, vr, vb;             // 지금 화면에 보이는 월드 영역
 
   void draw(World w, Camera cam, int player, Effects fx, GameMode gm) {
@@ -23,18 +24,68 @@ class Renderer {
     cam.apply();
     drawBackdrop();
     if (gm.mode == MODE_CONQUEST) drawZones(w, gm);
+    drawObstacles(w);
     fx.drawBelow(w);
     drawFood(w);
     if (fx.effective(w) >= 3) drawStreaks(w);
     drawAgents(w);
     fx.drawAbove(w);
     drawOrders(w, player);
+    if (showSquads) drawSquads(w);
     if (showGrid) drawGridDebug(w);
     popMatrix();
   }
 
   boolean visible(float x, float y) {
     return x > vl && x < vr && y > vt && y < vb;
+  }
+
+  // 장애물 (V0.6) : 어두운 바위. 불투명 색만 쓴다 (반투명은 느리다)
+  void drawObstacles(World w) {
+    strokeWeight(2);
+    for (int o = 0; o < w.nObs; o++) {
+      float r = w.obR[o];
+      if (w.obX[o] + r < vl || w.obX[o] - r > vr || w.obY[o] + r < vt || w.obY[o] - r > vb) continue;
+      stroke(58, 62, 72);
+      fill(22, 24, 30);
+      ellipse(w.obX[o], w.obY[o], r * 2, r * 2);
+      noStroke();
+      fill(30, 33, 40);
+      ellipse(w.obX[o] - r * 0.2, w.obY[o] - r * 0.2, r * 1.1, r * 1.1);
+    }
+    strokeWeight(1);
+  }
+
+  // 분대 디버그 (B) : 슬롯은 점, 분대 중심은 원, 방향은 선
+  void drawSquads(World w) {
+    SquadSystem ss = w.squads;
+    stroke(235);
+    strokeWeight(2);
+    beginShape(POINTS);
+    for (int i = 0; i < w.count; i++) {
+      Agent a = w.pool[i];
+      Squad q = ss.of(a);
+      if (q == null || q.form == FM_NONE) continue;
+      float sx = q.cx + q.dirX * a.slotU - q.dirY * a.slotV;
+      float sy = q.cy + q.dirY * a.slotU + q.dirX * a.slotV;
+      if (visible(sx, sy)) vertex(sx, sy);
+    }
+    endShape();
+    for (int j = 0; j < MAX_SQUADS; j++) {
+      Squad q = ss.sq[j];
+      if (!q.active || q.n == 0) continue;
+      color c = w.species[q.species].col;
+      stroke(c);
+      noFill();
+      strokeWeight(2);
+      ellipse(q.cx, q.cy, 26, 26);
+      line(q.cx, q.cy, q.cx + q.dirX * 60, q.cy + q.dirY * 60);
+      fill(255);
+      textSize(14);
+      textAlign(CENTER, BOTTOM);
+      text(formName(q.form) + " " + q.n + (q.engaged > 0.05 ? " 교전 " + round(q.engaged * 100) + "%" : ""), q.cx, q.cy - 16);
+    }
+    strokeWeight(1);
   }
 
   void drawBackdrop() {

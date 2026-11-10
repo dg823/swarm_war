@@ -155,6 +155,10 @@ class Ecosystem {
     }
     px = constrain(px, 5, WORLD_W - 5);
     py = constrain(py, 5, WORLD_H - 5);
+    if (w.nObs > 0 && w.pushOut(px, py, 4)) {          // 장애물 안에는 먹이가 생기지 않는다 (난수를 더 쓰지 않고 바깥으로 옮김)
+      px = w.pushX;
+      py = w.pushY;
+    }
     food.add(px, py, FOOD_ENERGY);
     generated++;
   }

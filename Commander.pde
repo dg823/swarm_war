@@ -18,6 +18,7 @@ class Commander {
   float radius = 220;               // 방어 반경
   float rallyX, rallyY;             // 집결지 (후퇴 목적지)
   int aiTimer;
+  int formSet = FM_AUTO;            // 진형 설정 (V0.6). AUTO면 명령에 따라 정한다 (Z로 순환)
 
   // 무리 찾기용 거친 격자 (할당 없이 재사용)
   final int CC = 200;
@@ -40,6 +41,11 @@ class Commander {
     tx = homeX;
     ty = homeY;
     aiTimer = 0;
+  }
+
+  // 지금 적용되는 진형
+  int resolvedForm() {
+    return formSet == FM_AUTO ? autoFormation(order) : formSet;
   }
 
   // ---------- 플레이어 명령 ----------
@@ -188,7 +194,16 @@ class Commander {
     if (order == ORD_NONE) return;
     BoidsSystem b = w.boids;
     float obey = me.flockMul * (0.5 + 0.5 * me.energy / me.maxEnergy);
-    float dx = tx - me.x, dy = ty - me.y;
+    float gx = tx, gy = ty;
+    if (order != ORD_DEFEND) {                         // 진형 중이면 목표도 분대 위치와 슬롯만큼 옮긴다 (한 점으로 몰리지 않도록)
+      Squad q = w.squads.of(me);
+      float k = w.squads.strength(me, q);
+      if (k > 0) {
+        gx = tx + (q.tgtX - tx + q.dirX * me.slotU - q.dirY * me.slotV) * k;
+        gy = ty + (q.tgtY - ty + q.dirY * me.slotU + q.dirX * me.slotV) * k;
+      }
+    }
+    float dx = gx - me.x, dy = gy - me.y;
     float d = sqrt(dx * dx + dy * dy);
 
     if (order == ORD_MOVE || order == ORD_ATTACK) {
