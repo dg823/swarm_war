@@ -18,6 +18,12 @@ class Squad {
   float tgtX, tgtY;                 // 명령 목표 + 분대 위치 보정
   int n;                            // 소속 인원 (5Hz)
   float gap;                        // 슬롯 간격
+  // V0.7 전술 : 분대 자신의 명령 (order < 0 이면 종족 명령을 따른다)
+  int order = -1;
+  float tx, ty;
+  int role;                         // ROLE_*
+  float roleT;                      // 역할을 맡은 뒤 지난 시간 (초)
+  float rallyX, rallyY;             // 후퇴/재집결 지점
   // 매 스텝 누적용
   float sx, sy, svx, svy;
   int cnt;
@@ -52,6 +58,9 @@ class SquadSystem {
       sq[i].engaged = 0;
       sq[i].dirX = 1;
       sq[i].dirY = 0;
+      sq[i].order = -1;
+      sq[i].role = ROLE_NONE;
+      sq[i].roleT = 0;
     }
     for (int s = 0; s < N_SPECIES; s++) k[s] = 0;
     updates = 0;
@@ -120,7 +129,8 @@ class SquadSystem {
     for (int s = 0; s < N_SPECIES; s++) {
       Commander cm = w.cmd[s];
       int form = cm.resolvedForm();
-      if (form == FM_NONE) {                                 // 진형을 쓰지 않으면 분대도 없다 (V0.5와 같은 동작과 비용)
+      boolean tac = w.tactics.active(cm);                      // 전술 AI는 진형과 무관하게 분대가 필요하다
+      if (form == FM_NONE && !tac) {                                 // 진형을 쓰지 않으면 분대도 없다 (V0.5와 같은 동작과 비용)
         for (int j = 0; j < k[s]; j++) sq[s * SQUAD_STRIDE + j].active = false;
         k[s] = 0;
         continue;
@@ -130,8 +140,9 @@ class SquadSystem {
       Species sp = w.species[s];
       for (int j = 0; j < k[s]; j++) {
         Squad q = sq[s * SQUAD_STRIDE + j];
-        if (q.form != form) {
-          q.form = form;
+        int qf = cm.formSet == FM_AUTO && q.order >= 0 ? autoFormation(q.order) : form;   // 전술 명령이 있으면 분대별 진형
+        if (q.form != qf) {
+          q.form = qf;
           q.blend = 0;                                       // 진형이 바뀌면 2초에 걸쳐 섞는다
         }
         q.gap = sp.sepRadius() * 1.05;
@@ -160,6 +171,9 @@ class SquadSystem {
         q.engaged = 0;
         q.blend = 0;
         q.form = FM_NONE;
+        q.order = -1;
+        q.role = ROLE_NONE;
+        q.roleT = 0;
         seedFromSpread(w, s, j, want, q);
       } else if (!on && q.active) {
         q.active = false;
@@ -245,6 +259,13 @@ class SquadSystem {
   // 명령 목표가 있으면 그쪽, 없으면 평균 속도 방향으로 천천히 돌린다
   void updateDirection(World w, Squad q, Commander cm) {
     int s = q.species;
+    if (q.order >= 0) {                                      // 전술 AI가 준 분대 목표 (종족 중심 보정 없음)
+      q.tgtX = q.tx;
+      q.tgtY = q.ty;
+      if (q.order == ORD_DEFEND) turnToward(q, 0, 0);
+      else turnToward(q, q.tx - q.cx, q.ty - q.cy);
+      return;
+    }
     float ox = q.cx - w.cx[s], oy = q.cy - w.cy[s];          // 종족 중심에 대한 분대 위치 (분대끼리 겹치지 않도록 목표에도 유지)
     float om = sqrt(ox * ox + oy * oy);
     float cap = cm.order == ORD_ATTACK ? 150 : 350;
@@ -259,10 +280,15 @@ class SquadSystem {
     if (cm.order != ORD_NONE && cm.order != ORD_DEFEND) {
       dx = q.tgtX - q.cx;
       dy = q.tgtY - q.cy;
-      if (dx * dx + dy * dy < 60 * 60) {                     // 거의 도착했으면 방향 유지
-        dx = 0;
-        dy = 0;
-      }
+    }
+    turnToward(q, dx, dy);
+  }
+
+  // (dx, dy) 쪽으로 진형 방향을 천천히 돌린다. 거의 도착했거나 목표가 없으면 평균 속도 방향.
+  void turnToward(Squad q, float dx, float dy) {
+    if (dx * dx + dy * dy < 60 * 60) {
+      dx = 0;
+      dy = 0;
     }
     if (dx == 0 && dy == 0) {
       dx = q.vx;

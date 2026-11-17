@@ -78,7 +78,8 @@ class Hud {
 
   // 상단 바 아래의 모드/효과 상태
   void drawModeLine(World w, GameMode gm, Effects fx) {
-    String t = "모드[M] " + gm.name() + "  " + gm.status(w) + "     효과[F] " + fx.levelName(w);
+    String t = "모드[M] " + gm.name() + "  " + gm.status(w) + "     효과[F] " + fx.levelName(w) + "     전술";
+    for (int s = 0; s < N_SPECIES; s++) t += " " + w.species[s].name + ":" + planName(w.tactics.plan[s]);
     textAlign(LEFT, TOP);
     textSize(13);
     fill(0, 140);

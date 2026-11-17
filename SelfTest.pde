@@ -13,6 +13,8 @@ void runSelfTest() {
     else if (SELFTEST_ONLY.equals("dbg")) debugControl();
     else if (SELFTEST_ONLY.equals("inv")) testInvariants();
     else if (SELFTEST_ONLY.equals("form")) testFormation();          // V0.6 진형 F1~F6, P
+    else if (SELFTEST_ONLY.equals("tac")) testTactics();             // V0.7 전술 TA1~TA6
+    else if (SELFTEST_ONLY.equals("tacdbg")) testSquadRetreat();     // TA5 진행 과정 출력
     else if (SELFTEST_ONLY.equals("part1")) {            // T1~T13 (진화 실험 제외)
       boolean ok = true;
       ok &= testGrid();
@@ -84,6 +86,7 @@ void runSelfTest() {
   ok &= testStability();
   ok &= testFrameIndependence();
   ok &= testFormation();
+  ok &= testTactics();
   stAllOk = ok;                                       // 렌더링 성능(T23)은 draw() 안에서 재고 최종 판정을 출력한다
 }
 

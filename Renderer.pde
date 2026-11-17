@@ -80,10 +80,17 @@ class Renderer {
       strokeWeight(2);
       ellipse(q.cx, q.cy, 26, 26);
       line(q.cx, q.cy, q.cx + q.dirX * 60, q.cy + q.dirY * 60);
+      if (q.order >= 0) {                                      // 전술 목표 (V0.7)
+        stroke(red(c), green(c), blue(c), 120);
+        strokeWeight(1);
+        line(q.cx, q.cy, q.tx, q.ty);
+        ellipse(q.tx, q.ty, 14, 14);
+      }
       fill(255);
       textSize(14);
       textAlign(CENTER, BOTTOM);
-      text(formName(q.form) + " " + q.n + (q.engaged > 0.05 ? " 교전 " + round(q.engaged * 100) + "%" : ""), q.cx, q.cy - 16);
+      text((q.order >= 0 ? roleName(q.role) + " · " : "") + formName(q.form) + " " + q.n
+        + (q.engaged > 0.05 ? " 교전 " + round(q.engaged * 100) + "%" : ""), q.cx, q.cy - 16);
     }
     strokeWeight(1);
   }

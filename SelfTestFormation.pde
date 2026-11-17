@@ -251,7 +251,7 @@ boolean testFormEngage() {
   float q0 = formQuality(w, 0);
 
   w.refreshSpeciesStats();
-  w.spawnCluster(2, 30, w.cx[0] + 220, w.cy[0], 50);          // 앞에 GREEN 무리
+  w.spawnCluster(2, 50, w.cx[0] + 220, w.cy[0], 60);          // 앞에 GREEN 무리 (V0.7 AI가 더 빨리 피하므로 30 -> 50)
   float qMin = q0, engMax = 0;
   int t = 0;
   for (; t < 300; t++) {                                      // 최대 5초 교전
@@ -259,7 +259,7 @@ boolean testFormEngage() {
     float qq = formQuality(w, 0);
     qMin = min(qMin, qq);
     for (int j = 0; j < w.squads.k[0]; j++) engMax = max(engMax, w.squads.sq[j].engaged);
-    if (t > 90 && engMax > 0.3) break;
+    if (t >= 180) break;                                      // 교전 3초 고정 (교전 시작 시점에 따라 측정이 달라지지 않도록)
   }
   w.setPopulation(2, 0);                                      // 적을 치운다
   int rec = -1;

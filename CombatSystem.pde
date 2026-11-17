@@ -47,16 +47,18 @@ class CombatSystem {
 
     // ---- 지휘 명령이 판단에 주는 영향 (명령은 성향을 바꿀 뿐, 전투 규칙 자체는 그대로) ----
     Commander cm = w.cmd[me.species];
+    w.effOrder(me);                                         // 분대 전술 명령이 있으면 그것 (V0.7)
+    int ord = w.eOrd;
     float aggr = me.aggression;
     float retreatHp = s.retreatHp;
     int enemies = sc.enemies;
-    if (cm.order == ORD_ATTACK) {
+    if (ord == ORD_ATTACK) {
       aggr *= 2.0;
       retreatHp *= 0.5;
-    } else if (cm.order == ORD_RETREAT) {
+    } else if (ord == ORD_RETREAT) {
       aggr *= 0.25;
-    } else if (cm.order == ORD_DEFEND) {
-      float dz = dist(me.x, me.y, cm.tx, cm.ty);
+    } else if (ord == ORD_DEFEND) {
+      float dz = dist(me.x, me.y, w.eTx, w.eTy);
       if (dz < cm.radius * 1.2) aggr *= 1.5;               // 방어 구역 안에서는 적극적으로
       else if (dz > cm.radius * 1.5) enemies = 0;          // 이탈 한계 밖에서는 추격하지 않고 돌아간다
       else aggr *= 0.7;

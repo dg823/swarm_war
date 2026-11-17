@@ -15,6 +15,25 @@ class World {
   Evolution evo;
   Commander[] cmd = new Commander[N_SPECIES];
   SquadSystem squads = new SquadSystem();   // V0.6 분대와 진형 슬롯
+  InfluenceMap influence = new InfluenceMap();   // V0.7 지역별 병력 집계 (5Hz)
+  TacticalAI tactics = new TacticalAI();         // V0.7 분대 역할과 목표 (5Hz)
+  long nsTac;
+
+  // 개체에 적용되는 명령 : 분대에 전술 명령이 있으면 그것, 없으면 종족 명령 (결과는 eOrd, eTx, eTy)
+  int eOrd;
+  float eTx, eTy;
+  void effOrder(Agent a) {
+    Commander c = cmd[a.species];
+    eOrd = c.order;
+    eTx = c.tx;
+    eTy = c.ty;
+    Squad q = squads.of(a);
+    if (q != null && q.order >= 0) {
+      eOrd = q.order;
+      eTx = q.tx;
+      eTy = q.ty;
+    }
+  }
 
   // 장애물 (V0.6, 원형). 시드와 무관한 고정 배치라 난수를 쓰지 않는다.
   float[] obX = new float[MAX_OBS], obY = new float[MAX_OBS], obR = new float[MAX_OBS];
@@ -91,6 +110,7 @@ class World {
     evo.reset();
     stats.reset();
     squads.reset();
+    tactics.reset();
     placeObstacles(worldObstacles);
     for (int s = 0; s < N_SPECIES; s++) cmd[s].reset(homeX[s], homeY[s]);
     for (int s = 0; s < N_SPECIES; s++) spawnCluster(s, INITIAL_PER_SPECIES, homeX[s], homeY[s], 230);
@@ -343,6 +363,12 @@ class World {
     long ts = System.nanoTime();
     squads.step(this);              // 분대 중심(매 스텝), 소속/방향/슬롯(5Hz)
     nsSquad += System.nanoTime() - ts;
+    if (stepCount % TAC_PERIOD == 0) {
+      ts = System.nanoTime();
+      influence.update(this);       // 지역별 병력, 전선
+      tactics.update(this);         // 분대 역할: 집중/돌파/측면/포위/후퇴/재집결/방어
+      nsTac += System.nanoTime() - ts;
+    }
     eco.begin(this);                // 먹이 생성(일정한 양) + 먹이 격자
     grid.build(pool, count);
     long t1 = System.nanoTime();

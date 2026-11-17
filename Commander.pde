@@ -18,7 +18,9 @@ class Commander {
   float radius = 220;               // 방어 반경
   float rallyX, rallyY;             // 집결지 (후퇴 목적지)
   int aiTimer;
-  int formSet = FM_AUTO;            // 진형 설정 (V0.6). AUTO면 명령에 따라 정한다 (Z로 순환)
+  int formSet = FM_AUTO;
+  float lastEff;                    // 전략 판단에 쓴 유효 전력비 (전술 AI가 포위/측면을 고를 때 쓴다)
+  int targetSp = -1;                // 공격 대상 종족            // 진형 설정 (V0.6). AUTO면 명령에 따라 정한다 (Z로 순환)
 
   // 무리 찾기용 거친 격자 (할당 없이 재사용)
   final int CC = 200;
@@ -136,7 +138,7 @@ class Commander {
   void update(World w) {
     if (isPlayer || w.pop[species] == 0) return;
     if (aiTimer-- > 0) return;
-    aiTimer = 180;
+    aiTimer = 60;                                     // Strategic AI 1Hz (V0.7, 이전 3초)
     if (w.eco.enabled && w.meanEnergy[species] < 0.5) {   // 배가 고프면 명령을 멈추고 먹이부터 구한다
       order = ORD_NONE;
       return;
@@ -144,7 +146,7 @@ class Commander {
 
     // 전투력 합 비율에 종족 상성을 곱해 판단한다 (전투력 합만으로는 BLUE의 방어와 지원, GREEN의 도주를 반영하지 못한다)
     //   행 = 내 종족, 열 = 상대 종족. RED는 GREEN을 잡지만 BLUE에게는 지고, BLUE는 RED를 이기지만 GREEN을 못 따라잡는다.
-    float[][] matchup = {{1.0, 0.6, 2.0}, {1.6, 1.0, 0.1}, {0.5, 0.3, 1.0}};
+    float[][] matchup = MATCHUP_TABLE;
     float[] attackThr = {0.9, 2.2, 99};               // RED는 공세적, BLUE는 압도적일 때만(수호자), GREEN은 싸우지 않는다
 
     int ne = nearestEnemy(w);
@@ -160,10 +162,25 @@ class Commander {
     }
     float nearEff = ne >= 0 ? w.powerSum[species] / max(1, w.powerSum[ne]) * matchup[species][ne] : 99;
 
+    // 목표 주변까지 본다 (V0.7) : 목표 근처에 천적이 있으면 그 지역의 상성 보정 적 전력으로 다시 판단한다
+    //   (RED가 GREEN을 노리다 바로 옆의 BLUE에게 무너지던 문제)
+    if (target >= 0 && findCluster(w, target)) {
+      w.influence.localForce(species, tgtX, tgtY);
+      if (w.influence.enemyP > 0) bestEff = min(bestEff, w.powerSum[species] / w.influence.enemyP);
+    }
+    lastEff = bestEff;
+    targetSp = -1;
+    float ned = ne >= 0 ? dist(w.cx[ne], w.cy[ne], w.cx[species], w.cy[species]) : 1e9;
     if (target >= 0 && bestEff >= attackThr[species] && findCluster(w, target)) {
       order = ORD_ATTACK;
+      targetSp = target;
       tx = tgtX;
       ty = tgtY;
+    } else if (ne >= 0 && nearEff >= 0.5 && nearEff < 1.0 && ned < 450) {
+      order = ORD_DEFEND;                              // 밀리지는 않지만 이길 수도 없는 적이 가까우면 가까운 오아시스를 지킨다
+      int h = w.eco.nearestHot(w.cx[species], w.cy[species]);
+      tx = w.eco.hotX[h];
+      ty = w.eco.hotY[h];
     } else if (ne >= 0 && nearEff < 0.5) {
       order = ORD_RETREAT;
       float far = -1;                                  // 적 무리에서 가장 먼 오아시스로 물러난다
@@ -191,6 +208,9 @@ class Commander {
   void force(World w, Agent me, Species s) {
     fx = 0;
     fy = 0;
+    w.effOrder(me);                                    // 분대 전술 명령이 있으면 그것 (V0.7)
+    int order = w.eOrd;
+    float tx = w.eTx, ty = w.eTy;
     if (order == ORD_NONE) return;
     BoidsSystem b = w.boids;
     float obey = me.flockMul * (0.5 + 0.5 * me.energy / me.maxEnergy);
