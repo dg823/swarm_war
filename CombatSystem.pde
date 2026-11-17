@@ -112,7 +112,7 @@ class CombatSystem {
       t.attacker = me;
       t.attackerId = me.id;
       me.cooldown = s.attackCd;
-      w.events.add(EV_HIT, t.x, t.y, me.species);
+      w.events.add(EV_HIT, t.x, t.y, me.species, me.x, me.y);   // 공격자 위치도 남긴다 (V0.8 투사체/방향 표시)
     }
   }
 

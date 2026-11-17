@@ -10,14 +10,22 @@ class EventLog {
   float[] y = new float[CAP];
   int[] type = new int[CAP];
   int[] sp = new int[CAP];
+  float[] sx = new float[CAP];                  // 사건의 출발점 (타격 : 공격자 위치, V0.8 공격 방향 표시용)
+  float[] sy = new float[CAP];
   int n;
 
   void add(int t, float px, float py, int s) {
+    add(t, px, py, s, px, py);
+  }
+
+  void add(int t, float px, float py, int s, float fromX, float fromY) {
     if (n >= CAP) return;                       // 가득 차면 버린다 (장식이라 잃어도 된다)
     x[n] = px;
     y[n] = py;
     type[n] = t;
     sp[n] = s;
+    sx[n] = fromX;
+    sy[n] = fromY;
     n++;
   }
 
@@ -53,6 +61,8 @@ class Effects {
 
   // 배경 입자
   float[] dustX = new float[60], dustY = new float[60], dustV = new float[60];
+
+  BattleFx battle = new BattleFx();             // V0.8 투사체, 섬광, 충격파, 연기, 그을음
 
   Effects() {
     for (int i = 0; i < dustX.length; i++) {
@@ -123,6 +133,7 @@ class Effects {
       pvx[i] *= 0.95;
       pvy[i] *= 0.95;
     }
+    battle.update(dt, this);
     for (int i = nr - 1; i >= 0; i--) {
       rlife[i] -= dt;
       if (rlife[i] <= 0) {
@@ -158,18 +169,23 @@ class Effects {
     int sp = w.events.sp[i];
     color col = w.species[sp].col;
     int type = w.events.type[i];
-    if (type == EV_HIT) {
-      int k = L >= 3 ? 4 : 2;
-      for (int j = 0; j < k; j++) {
-        float a = random(TWO_PI), s = random(60, 160);
-        addParticle(x, y, cos(a) * s, sin(a) * s, random(0.15, 0.35), random(2, 3.5), color(255, 240, 200));
+    if (type == EV_HIT) {                         // V0.8 : 공격자 -> 피격자 예광, 도착하면 공격 방향으로 불꽃 (BattleFx)
+      float ax = w.events.sx[i], ay = w.events.sy[i];
+      battle.onHit(ax, ay, x, y, sp, L);
+      if (L == 1) {                               // 낮음 : 예광 없이 공격 방향 불꽃만
+        float a = atan2(y - ay, x - ax);
+        for (int j = 0; j < 2; j++) {
+          float aa = a + random(-0.6, 0.6), s = random(60, 160);
+          addParticle(x, y, cos(aa) * s, sin(aa) * s, random(0.15, 0.35), random(2, 3.5), color(255, 240, 200));
+        }
       }
     } else if (type == EV_DEATH) {
       int k = L >= 3 ? 8 : 5;
-      for (int j = 0; j < k; j++) {
+      for (int j = 0; j < k; j++) {               // 파편/불티
         float a = random(TWO_PI), s = random(40, 140);
         addParticle(x, y, cos(a) * s, sin(a) * s, random(0.4, 0.9), random(2, 5), col);
       }
+      battle.onDeath(x, y, sp, L);                // V0.8 충격파, 연기, 그을음
     } else if (type == EV_BIRTH && nr < MAXR) {
       rx[nr] = x;
       ry[nr] = y;
@@ -222,6 +238,7 @@ class Effects {
   // 개체 아래 : 배경 입자, 군집 중심 후광
   void drawBelow(World w) {
     int L = effective(w);
+    if (L >= 1) battle.drawBelow(rdr);            // 그을음 (V0.8)
     if (L < 2) return;                            // 배경 입자와 군집 후광은 "보통" 이상에서만
     stroke(26, 28, 33);                           // 불투명 (배경과 미리 섞은 색)
     strokeWeight(3);
@@ -249,6 +266,7 @@ class Effects {
   // 개체 위 : 파티클, 번식 링
   void drawAbove(World w) {
     if (effective(w) == 0) return;
+    battle.drawAbove(rdr);                        // 연기, 충격파, 예광, 섬광 (V0.8)
     noStroke();
     for (int i = 0; i < np; i++) {
       float a = 255 * plife[i] / pmax[i];

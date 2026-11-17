@@ -82,6 +82,7 @@ void restart(long seed) {
   world.reset(seed);
   world.setPlayer(player);
   gm.reset(world);
+  fx.battle.reset();                                     // 이전 전장의 그을음/예광 지우기 (V0.8)
 }
 
 void keyPressed() {
