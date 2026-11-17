@@ -272,8 +272,8 @@ class Hud {
     textSize(12);
     textAlign(LEFT, BOTTOM);
     text(player < 0
-      ? "관찰 모드 (모두 AI)   |   1/2/3 종족 지휘 시작   Z 진형(전 종족)   B 분대 표시"
-      : "명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   Z 진형   |   1/2/3 지휘 종족 선택   0 관찰 모드   B 분대 표시", 12, height - 28);
+      ? "관찰 모드 (모두 AI)   |   1/2/3 종족 지휘 시작   Z 진형(전 종족)   B 분대   C 카메라: " + view.camName() + "   V 전선/점령 지도"
+      : "명령 : 좌클릭 이동   우클릭 방어   Q 공격   E 후퇴   Z 진형   |   1/2/3 지휘 종족   0 관찰   B 분대   C 카메라: " + view.camName() + "   V 전선 지도", 12, height - 28);
     text("화면 : WASD 이동   휠 확대   TAB 그래프   G 격자   T 잔상   F 효과   H 숨김   |   SPACE 정지   , . 배속   M 모드   R 재시작   N 새 시드   UP/DOWN 개체 +-50",
       12, height - 10);
   }

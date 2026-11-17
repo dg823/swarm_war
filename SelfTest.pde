@@ -16,6 +16,7 @@ void runSelfTest() {
     else if (SELFTEST_ONLY.equals("tac")) testTactics();             // V0.7 전술 TA1~TA6
     else if (SELFTEST_ONLY.equals("tacdbg")) testSquadRetreat();     // TA5 진행 과정 출력
     else if (SELFTEST_ONLY.equals("fx")) testFx();                   // V0.8 전장 효과 FX1~FX5 (+ 스크린샷)
+    else if (SELFTEST_ONLY.equals("view")) testView();               // V0.9 전장 연출 VW1~VW6 (+ 스크린샷)
     else if (SELFTEST_ONLY.equals("part1")) {            // T1~T13 (진화 실험 제외)
       boolean ok = true;
       ok &= testGrid();
@@ -89,6 +90,7 @@ void runSelfTest() {
   ok &= testFormation();
   ok &= testTactics();
   ok &= testFx();
+  ok &= testView();
   stAllOk = ok;                                       // 렌더링 성능(T23)은 draw() 안에서 재고 최종 판정을 출력한다
 }
 
@@ -1781,6 +1783,11 @@ boolean testRenderPerf() {
 int stFrame = 0;
 
 void selfTestFrame() {
+  if (SELFTEST_ONLY.equals("view")) {                   // 전장 연출 스크린샷 (V0.9)
+    viewShots();
+    exit();
+    return;
+  }
   if (SELFTEST_ONLY.equals("fx")) {                     // 전장 효과 스크린샷 (V0.8)
     fxShots();
     exit();

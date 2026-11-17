@@ -4,6 +4,14 @@ class Renderer {
   boolean trails = false;           // 화면 잔상 (이전 프레임을 서서히 지운다)
   boolean showGrid = false;         // 공간 격자 디버그
   boolean showSquads = false;       // 분대 디버그 (V0.6) : 분대 중심, 방향, 슬롯
+  int lod = LOD_NORMAL;             // V0.9 배율별 표현 수준
+
+  // 배율에 따른 표현 : 전체 보기(최소 배율 근처) = 방향선 + 이동 흐름 화살표, 기본 = 삼각형, 확대 = 삼각형 + 체력 막대
+  int lodFor(Camera cam) {
+    if (cam.zoom <= cam.minZoom * 1.15) return LOD_OVERVIEW;
+    if (cam.zoom >= 1.6) return LOD_DETAIL;
+    return LOD_NORMAL;
+  }
   float vl, vt, vr, vb;             // 지금 화면에 보이는 월드 영역
 
   void draw(World w, Camera cam, int player, Effects fx, GameMode gm) {
@@ -20,15 +28,19 @@ class Renderer {
     vt = cam.top(30);
     vb = cam.bottom(30);
 
+    lod = lodFor(cam);
     pushMatrix();
     cam.apply();
     drawBackdrop();
+    if (view.overlay) view.drawOverlay(w, this);          // V0.9 우세 지역, 전선, 오아시스 점령
     if (gm.mode == MODE_CONQUEST) drawZones(w, gm);
     drawObstacles(w);
     fx.drawBelow(w);
     drawFood(w);
-    if (fx.effective(w) >= 3) drawStreaks(w);
+    if (fx.effective(w) >= 3 && lod != LOD_OVERVIEW) drawStreaks(w);
     drawAgents(w);
+    if (lod == LOD_OVERVIEW) view.drawFlow(w);              // 전체 보기 : 이동 흐름
+    view.drawHotspot();
     fx.drawAbove(w);
     drawOrders(w, player);
     if (showSquads) drawSquads(w);
@@ -210,9 +222,30 @@ class Renderer {
   }
 
   void drawAgents(World w) {
-    noStroke();
     Agent[] a = w.pool;
     int n = w.count;
+    if (lod == LOD_OVERVIEW) {                              // 전체 보기 : 진행 방향을 가리키는 짧은 선 (밀도와 방향이 잘 보인다)
+      strokeCap(SQUARE);
+      for (int s = 0; s < N_SPECIES; s++) {
+        Species sp = w.species[s];
+        float sz = sp.size;
+        stroke(sp.col);
+        strokeWeight(sz * 0.75);
+        beginShape(LINES);
+        for (int i = 0; i < n; i++) {
+          Agent o = a[i];
+          if (o.species != s || !visible(o.x, o.y)) continue;
+          float dx = cos(o.heading), dy = sin(o.heading);
+          vertex(o.x - dx * sz * 0.6, o.y - dy * sz * 0.6);
+          vertex(o.x + dx * sz * 0.9, o.y + dy * sz * 0.9);
+        }
+        endShape();
+      }
+      strokeCap(ROUND);
+      strokeWeight(1);
+      return;
+    }
+    noStroke();
     for (int s = 0; s < N_SPECIES; s++) {
       Species sp = w.species[s];
       float sz = sp.size;
@@ -244,6 +277,20 @@ class Renderer {
       vertex(o.x - dx * sz * 0.6 - px * sz * 0.5, o.y - dy * sz * 0.6 - py * sz * 0.5);
     }
     endShape();
+
+    if (lod == LOD_DETAIL) {                                // 확대 : 다친 개체의 체력 막대
+      noStroke();
+      for (int i = 0; i < n; i++) {
+        Agent o = a[i];
+        if (o.hp >= o.maxHp - 0.01 || !visible(o.x, o.y)) continue;
+        float sz = w.species[o.species].size, bw = sz * 1.8, f = constrain(o.hp / o.maxHp, 0, 1);
+        float bx = o.x - bw / 2, by = o.y - sz - 6;
+        fill(30, 32, 38);
+        rect(bx, by, bw, 3);
+        fill(255 * (1 - f) + 40 * f, 220 * f + 60 * (1 - f), 70);
+        rect(bx, by, bw * f, 3);
+      }
+    }
   }
 
   void drawGridDebug(World w) {

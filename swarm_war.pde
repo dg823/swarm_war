@@ -20,6 +20,8 @@ Hud hud;
 Metrics metrics;
 Effects fx;
 GameMode gm;
+WarView view = new WarView();       // V0.9 전장 분석, 추적 카메라, 오버레이
+Minimap minimap = new Minimap();
 
 int player = -1;                    // 플레이어가 지휘하는 종족 (-1 = 관찰 모드, 모두 AI)
 boolean worldObstacles = true;      // 새 월드에 장애물을 놓는가 (자체 검증은 기존 결과와 비교하려고 끈다)
@@ -61,6 +63,7 @@ void draw() {
   lastMs = now;
 
   float pan = 700 * min(frameDt, 0.1);
+  if (kw || ks || ka || kd) view.camMode = CAM_FREE;     // 직접 움직이면 추적을 끈다
   if (kw) cam.pan(0, -pan);
   if (ks) cam.pan(0, pan);
   if (ka) cam.pan(-pan, 0);
@@ -69,6 +72,8 @@ void draw() {
   if (!isPaused) world.update(frameDt, timeScale);
   gm.update(world, player);
   fx.update(world, min(frameDt, 0.1));
+  view.update(world);                                    // V0.9 전장 분석 (5Hz)
+  view.updateCamera(cam, world, min(frameDt, 0.1));
   if (frameCount % 15 == 1) {
     metrics.compute(world);
     world.countSpecies();
@@ -76,6 +81,10 @@ void draw() {
 
   rdr.draw(world, cam, player, fx, gm);
   hud.draw(world, metrics, player, timeScale, isPaused, gm, fx);
+  if (hud.visible) {
+    minimap.draw(world, view, cam);
+    drawBattleBanner(world, view);
+  }
 }
 
 void restart(long seed) {
@@ -114,6 +123,8 @@ void keyPressed() {
     }
   }
   if (keyCode == 'B') rdr.showSquads = !rdr.showSquads;
+  if (keyCode == 'C') view.cycleCamera();                // V0.9 카메라 : 자유 -> 주요 교전 -> 종족 추적
+  if (keyCode == 'V') view.overlay = !view.overlay;      // V0.9 전선/우세 지역/점령 오버레이
   if (key == ' ') isPaused = !isPaused;
   if (keyCode == 'R') restart(world.seed);
   if (keyCode == 'N') restart(millis() * 7919L + 13);
@@ -137,6 +148,10 @@ void keyReleased() {
 
 // 좌클릭 = 이동 명령, 우클릭 = 방어 명령 (HUD 위는 제외)
 void mousePressed() {
+  if (hud.visible && minimap.hits(mouseX, mouseY)) {     // 미니맵 : 그 위치로 이동 (V0.9)
+    if (minimap.hitsMap(mouseX, mouseY)) minimap.click(mouseX, mouseY, cam, view);
+    return;
+  }
   if (player < 0 || hud.hits(mouseX, mouseY)) return;    // 관찰 모드에서는 클릭 명령 없음
   float wx = cam.toWorldX(mouseX), wy = cam.toWorldY(mouseY);
   if (mouseButton == LEFT) world.cmd[player].moveTo(wx, wy);
@@ -145,4 +160,5 @@ void mousePressed() {
 
 void mouseWheel(processing.event.MouseEvent event) {
   cam.zoomAt(mouseX, mouseY, pow(1.1, -event.getCount()));
+  view.autoZoom = false;                                 // 직접 확대하면 추적 카메라의 자동 확대를 멈춘다
 }
