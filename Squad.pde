@@ -78,7 +78,7 @@ class SquadSystem {
   float strength(Agent a, Squad q) {
     if (q == null || q.form == FM_NONE) return 0;
     float hunger = constrain((a.energy / a.maxEnergy - 0.25) / 0.25, 0, 1);
-    return q.blend * (1 - 0.85 * q.engaged) * a.formK * hunger;
+    return q.blend * (1 - 0.85 * min(1, q.engaged * ENGAGE_SPREAD)) * a.formK * hunger;
   }
 
   // ---------- 매 스텝 ----------

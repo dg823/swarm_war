@@ -18,6 +18,7 @@ final int MAX_SQUADS = 48;
 final float FORM_BLEND_TIME = 2.0;      // 진형 전환 블렌드 (초)
 final float ENGAGE_HOLD = 1.5;          // 교전이 끝나고 재정비를 시작하기까지 (초)
 final float REFORM_RATE = 0.5;          // 재정비 속도 (1/s)
+final float ENGAGE_SPREAD = 3.0;      // 일부가 교전하면 분대 전체가 대형을 푸는 정도 (교전 비율 x 이 값, 최대 1). 앞줄이 붙으면 나머지도 전진 지원한다.
 final float FORM_COH_CUT = 0.7;         // 진형 중 응집 가중치 감소 비율
 final float SQUAD_TURN = 1.5;           // 분대 방향 회전 속도 상한 (rad/s)
 

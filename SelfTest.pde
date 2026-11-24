@@ -13,6 +13,7 @@ void runSelfTest() {
     else if (SELFTEST_ONLY.equals("dbg")) debugControl();
     else if (SELFTEST_ONLY.equals("inv")) testInvariants();
     else if (SELFTEST_ONLY.equals("form")) testFormation();          // V0.6 진형 F1~F6, P
+    else if (SELFTEST_ONLY.equals("f4")) testFormEngage();           // F4만 (진형 교전 붕괴 튜닝용, 약 30초)
     else if (SELFTEST_ONLY.equals("tac")) testTactics();             // V0.7 전술 TA1~TA6
     else if (SELFTEST_ONLY.equals("tacdbg")) testSquadRetreat();     // TA5 진행 과정 출력
     else if (SELFTEST_ONLY.equals("fx")) testFx();                   // V0.8 전장 효과 FX1~FX5 (+ 스크린샷)
