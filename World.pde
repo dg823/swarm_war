@@ -38,7 +38,10 @@ class World {
   // 장애물 (V0.6, 원형). 시드와 무관한 고정 배치라 난수를 쓰지 않는다.
   float[] obX = new float[MAX_OBS], obY = new float[MAX_OBS], obR = new float[MAX_OBS];
   int nObs;
-  int forceSat;                     // 이번 스텝에 합력 상한(2.5 x maxForce)에 걸린 개체 수 (검증용)
+  int obVer;                        // 장애물 배치가 바뀔 때마다 늘어난다 (Flow Field 캐시 무효화)
+  FlowSystem flow = new FlowSystem();   // V0.7 목표별 공유 경로
+  boolean useFlow = true;           // 끄면 직선 이동만 (비교 실험용)
+  int forceSat;                    // 이번 스텝에 합력 상한(2.5 x maxForce)에 걸린 개체 수 (검증용)
   int playerSpecies = -1;           // 플레이어가 지휘하는 종족 (-1이면 모두 AI)
   Stats stats = new Stats();
   EventLog events = new EventLog(); // 타격/사망/번식 기록 (시각 효과가 읽어 간다. 시뮬레이션 결과에는 영향 없음)
@@ -112,6 +115,7 @@ class World {
     squads.reset();
     tactics.reset();
     placeObstacles(worldObstacles);
+    flow.reset();
     for (int s = 0; s < N_SPECIES; s++) cmd[s].reset(homeX[s], homeY[s]);
     for (int s = 0; s < N_SPECIES; s++) spawnCluster(s, INITIAL_PER_SPECIES, homeX[s], homeY[s], 230);
     for (int i = 0; i < count; i++) pool[i].age = rng.nextFloat() * 30;     // 번식 시점이 한꺼번에 몰리지 않게
@@ -129,6 +133,7 @@ class World {
   // 고정 배치 8개 : 종족 거점(반경 230)과 오아시스를 피해 놓았다
   void placeObstacles(boolean on) {
     nObs = 0;
+    obVer++;
     if (!on) return;
     float[][] L = {{1200, 600, 70}, {1200, 950, 80}, {400, 1150, 90}, {2200, 700, 60},
                    {800, 350, 60}, {1500, 750, 50}, {700, 1300, 60}, {1550, 1350, 50}};
@@ -141,6 +146,20 @@ class World {
     obY[nObs] = y;
     obR[nObs] = r;
     nObs++;
+    obVer++;
+  }
+
+  // 선분 (x0,y0)-(x1,y1)가 장애물(+pad)에 걸리는가
+  boolean segBlocked(float x0, float y0, float x1, float y1, float pad) {
+    float sx = x1 - x0, sy = y1 - y0;
+    float len2 = sx * sx + sy * sy;
+    for (int o = 0; o < nObs; o++) {
+      float t = len2 > 1e-6 ? constrain(((obX[o] - x0) * sx + (obY[o] - y0) * sy) / len2, 0, 1) : 0;
+      float px = x0 + sx * t - obX[o], py = y0 + sy * t - obY[o];
+      float rr = obR[o] + pad;
+      if (px * px + py * py < rr * rr) return true;
+    }
+    return false;
   }
 
   // 장애물 안이면 가장 가까운 가장자리 바깥으로 옮긴다. 결과는 pushX, pushY (옮겼으면 true)

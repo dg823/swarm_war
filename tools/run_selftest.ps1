@@ -11,7 +11,7 @@
 #   .\tools\run_selftest.ps1 -Only balance      # 4분 생태계 균형
 #   .\tools\run_selftest.ps1                    # 전부 (10분 넘게 걸린다)
 #
-# -Only 값: part1, part2, evo, noevo, balance, duels, genetics, inv, perf, final, v05, shots, renderprof, dbg
+# -Only 값: part1, part2, evo, noevo, balance, duels, genetics, inv, perf, final, v05, shots, renderprof, dbg, form, f4, tac, flow, fx, view
 #           (빈 값이면 전체. 스크린샷 shot_*.png 은 임시 폴더에 저장된다)
 #
 # 주의

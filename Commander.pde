@@ -225,6 +225,14 @@ class Commander {
     }
     float dx = gx - me.x, dy = gy - me.y;
     float d = sqrt(dx * dx + dy * dy);
+    if (w.useFlow && w.nObs > 0 && d > FF_CELL * 1.5 && order != ORD_DEFEND && w.segBlocked(me.x, me.y, gx, gy, FF_CLEAR)) {
+      FlowField ff = w.flow.get(w, tx, ty);            // 직선이 장애물에 막혔으면 공유 경로 장을 따른다 (V0.7 Flow Field)
+      if (ff.sample(me.x, me.y)) {
+        w.flow.uses++;
+        dx = ff.outX * d;
+        dy = ff.outY * d;
+      }
+    }
 
     if (order == ORD_MOVE || order == ORD_ATTACK) {
       if (!free(me)) return;

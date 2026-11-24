@@ -263,7 +263,18 @@ class SquadSystem {
       q.tgtX = q.tx;
       q.tgtY = q.ty;
       if (q.order == ORD_DEFEND) turnToward(q, 0, 0);
-      else turnToward(q, q.tx - q.cx, q.ty - q.cy);
+      else {
+        float fdx = q.tx - q.cx, fdy = q.ty - q.cy;
+        float fd = sqrt(fdx * fdx + fdy * fdy);
+        if (w.useFlow && w.nObs > 0 && fd > FF_CELL * 1.5 && w.segBlocked(q.cx, q.cy, q.tx, q.ty, FF_CLEAR)) {
+          FlowField ff = w.flow.get(w, q.tx, q.ty);      // 분대 방향도 돌아가는 길을 따른다 (슬롯이 장애물을 향해 돌지 않도록)
+          if (ff.sample(q.cx, q.cy)) {
+            fdx = ff.outX * fd;
+            fdy = ff.outY * fd;
+          }
+        }
+        turnToward(q, fdx, fdy);
+      }
       return;
     }
     float ox = q.cx - w.cx[s], oy = q.cy - w.cy[s];          // 종족 중심에 대한 분대 위치 (분대끼리 겹치지 않도록 목표에도 유지)
@@ -280,6 +291,14 @@ class SquadSystem {
     if (cm.order != ORD_NONE && cm.order != ORD_DEFEND) {
       dx = q.tgtX - q.cx;
       dy = q.tgtY - q.cy;
+      float dd = sqrt(dx * dx + dy * dy);
+      if (w.useFlow && w.nObs > 0 && dd > FF_CELL * 1.5 && w.segBlocked(q.cx, q.cy, q.tgtX, q.tgtY, FF_CLEAR)) {
+        FlowField ff = w.flow.get(w, cm.tx, cm.ty);      // 장은 종족 명령 목표로 공유 (분대마다 만들지 않는다)
+        if (ff.sample(q.cx, q.cy)) {
+          dx = ff.outX * dd;
+          dy = ff.outY * dd;
+        }
+      }
     }
     turnToward(q, dx, dy);
   }

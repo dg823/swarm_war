@@ -286,19 +286,19 @@ boolean testObstacles() {
   w.cmd[0].formSet = FM_AUTO;
   w.cmd[0].moveTo(1850, 750);                                // AUTO -> 이동 = 종대
   int insideMax = 0;
-  for (int i = 0; i < 1500; i++) {                           // 25초
+  int arrivedSum = 0, snaps = 0, n = 0;
+  for (int i = 1; i <= 1500; i++) {                          // 25초
     w.step();
     int inside = 0;
     for (int k = 0; k < w.count; k++) if (w.insideObstacle(w.pool[k].x, w.pool[k].y)) inside++;
     insideMax = max(insideMax, inside);
+    if (i >= 900 && i % 120 == 0) {                          // 15~25초 사이 2초마다 : 도착 후에도 목표 주변을 맴돌므로 한 순간이 아니라 평균을 본다
+      for (int k = 0; k < w.count; k++) if (dist(w.pool[k].x, w.pool[k].y, 1850, 750) < 300) arrivedSum++;   // 종대(70마리)가 스스로 ±250px 늘어서므로 반경은 300
+      snaps++;
+      n = w.count;
+    }
   }
-  int arrived = 0, n = 0;
-  for (int k = 0; k < w.count; k++) {
-    Agent a = w.pool[k];
-    if (a.species != 0) continue;
-    n++;
-    if (dist(a.x, a.y, 1850, 750) < 200) arrived++;
-  }
+  float arrived = arrivedSum / (float) snaps;
 
   // 먹이는 장애물 안에 생기지 않는다 (기본 장애물 배치, 생태계 켬)
   boolean saved = worldObstacles;
@@ -312,7 +312,7 @@ boolean testObstacles() {
   for (int k = 0; k < e.count; k++) if (e.insideObstacle(e.pool[k].x, e.pool[k].y)) agentInside++;
 
   boolean pass = insideMax == 0 && arrived >= n * 0.7 && foodInside == 0 && agentInside == 0 && e.nObs == 8;
-  report("F5 장애물", pass, "RED 70 종대가 반경 120 장애물 너머로 이동 : 안에 들어간 개체 최대 " + insideMax + ", 도착 " + arrived + "/" + n
+  report("F5 장애물", pass, "RED 70 종대가 반경 120 장애물 너머로 이동 : 안에 들어간 개체 최대 " + insideMax + ", 목표 300px 이내 평균 " + nf(arrived, 1, 1) + "/" + n
     + " | 기본 배치 " + e.nObs + "개, 15초 뒤 장애물 안 먹이 " + foodInside + " / " + e.eco.food.count + ", 안의 개체 " + agentInside);
   return pass;
 }
